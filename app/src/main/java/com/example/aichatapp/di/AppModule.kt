@@ -22,16 +22,26 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import java.util.concurrent.TimeUnit
+import com.example.aichatapp.data.security.CryptoManager
 
 @Module
 @InstallIn(SingletonComponent::class)
 object AppModule {
 
+    @Provides
+    @Singleton
+    fun provideCryptoManager(): CryptoManager {
+        return CryptoManager()
+    }
+
     // 1. Provide DataStore Settings Repository
     @Provides
     @Singleton
-    fun provideSettingsRepository(@ApplicationContext context: Context): SettingsRepository {
-        return SettingsRepository(context.dataStore)
+    fun provideSettingsRepository(
+        @ApplicationContext context: Context,
+        cryptoManager: CryptoManager
+    ): SettingsRepository {
+        return SettingsRepository(context.dataStore, cryptoManager)
     }
 
     // 2. Provide Room Database
