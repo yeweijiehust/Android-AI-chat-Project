@@ -20,6 +20,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.aichatapp.presentation.util.UiEvent
 import kotlinx.coroutines.flow.collectLatest
+import com.mikepenz.markdown.m3.Markdown
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,7 +39,6 @@ fun ChatScreen(
 
     val listState = rememberLazyListState()
 
-    // Handle UI Events (like API error snackbars)
     LaunchedEffect(Unit) {
         viewModel.uiEvent.collectLatest { event ->
             if (event is UiEvent.ShowSnackbar) {
@@ -47,10 +47,12 @@ fun ChatScreen(
         }
     }
 
-    // Auto-scroll to the bottom when a new message arrives
-    LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) {
-            listState.animateScrollToItem(messages.size - 1)
+    LaunchedEffect(messages.size, streamingMessage) {
+        if (messages.isNotEmpty() || !streamingMessage.isNullOrEmpty()) {
+            val lastIndex = if (streamingMessage != null) messages.size else messages.size - 1
+            if (lastIndex >= 0) {
+                listState.animateScrollToItem(lastIndex)
+            }
         }
     }
 
@@ -70,7 +72,6 @@ fun ChatScreen(
                 }
             )
         },
-        // imePadding ensures the UI moves up when the keyboard is opened
         modifier = Modifier.imePadding()
     ) { padding ->
         Column(
@@ -85,13 +86,11 @@ fun ChatScreen(
                     .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // The history loaded from the Room database
                 items(messages) { message ->
                     val isUser = message.role == "user"
-                    MessageBubble(message.content, isUser) // Abstracted to a helper below for clean code
+                    MessageBubble(message.content, isUser)
                 }
 
-                // 2. Add the real-time typing bubble!
                 if (streamingMessage != null) {
                     item {
                         MessageBubble(text = streamingMessage!!, isUser = false)
@@ -105,7 +104,6 @@ fun ChatScreen(
                 }
             }
 
-            // Bottom Input Area
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -133,7 +131,6 @@ fun ChatScreen(
             }
         }
 
-        // System Prompt Configuration Dialog
         if (showPromptDialog) {
             AlertDialog(
                 onDismissRequest = { showPromptDialog = false },
@@ -167,13 +164,31 @@ fun MessageBubble(text: String, isUser: Boolean) {
         modifier = Modifier.fillMaxWidth(),
         contentAlignment = if (isUser) Alignment.CenterEnd else Alignment.CenterStart
     ) {
-        Text(
-            text = text,
-            color = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+        Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(12.dp))
-                .background(if (isUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
+                .background(
+                    if (isUser) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.surfaceVariant
+                )
                 .padding(12.dp)
-        )
+        ) {
+            if (isUser) {
+                Text(
+                    text = text,
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
+            } else {
+                CompositionLocalProvider(
+                    LocalContentColor provides MaterialTheme.colorScheme.onSurfaceVariant
+                ) {
+                    Markdown(
+                        content = text,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+        }
     }
 }
+

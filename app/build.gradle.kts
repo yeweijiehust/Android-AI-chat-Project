@@ -97,4 +97,9 @@ dependencies {
     implementation("com.squareup.retrofit2:converter-kotlinx-serialization:3.0.0")
 
     implementation("com.squareup.okhttp3:okhttp-sse:5.3.2")
+    
+    // Markdown & Coil (Coil is often required by the markdown renderer)
+    implementation("com.mikepenz:multiplatform-markdown-renderer-android:0.39.2")
+    implementation("com.mikepenz:multiplatform-markdown-renderer-m3:0.39.2")
+    implementation("com.mikepenz:multiplatform-markdown-renderer-coil3:0.39.2")
 }
