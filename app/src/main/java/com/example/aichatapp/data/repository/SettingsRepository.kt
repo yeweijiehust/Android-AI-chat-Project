@@ -7,33 +7,40 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.example.aichatapp.data.security.CryptoManager
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-// Extension property to create DataStore
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "app_settings")
 
-class SettingsRepository(private val dataStore: DataStore<Preferences>) {
+class SettingsRepository(
+    private val dataStore: DataStore<Preferences>,
+    private val cryptoManager: CryptoManager // Inject the CryptoManager
+) {
 
-    // Define the Keys
     private val API_BASE_URL = stringPreferencesKey("api_base_url")
-    private val API_KEY = stringPreferencesKey("api_key")
+    private val SECURE_API_KEY = stringPreferencesKey("secure_api_key")
     private val MODEL = stringPreferencesKey("model")
     private val IS_REVERSE_PROXY = booleanPreferencesKey("is_reverse_proxy")
 
-    // Provide default values if nothing is saved yet
     val apiBaseUrl: Flow<String> = dataStore.data.map { it[API_BASE_URL] ?: "https://api.openai.com/v1/" }
-    val apiKey: Flow<String> = dataStore.data.map { it[API_KEY] ?: "" }
     val model: Flow<String> = dataStore.data.map { it[MODEL] ?: "gpt-3.5-turbo" }
     val isReverseProxy: Flow<Boolean> = dataStore.data.map { it[IS_REVERSE_PROXY] ?: false }
 
-    // Suspend functions to save data
-    suspend fun saveApiBaseUrl(url: String) {
-        dataStore.edit { it[API_BASE_URL] = url }
+    // Map the encrypted flow back to plain text for the UI and Network to read seamlessly
+    val apiKey: Flow<String> = dataStore.data.map { preferences ->
+        val encryptedKey = preferences[SECURE_API_KEY] ?: ""
+        cryptoManager.decrypt(encryptedKey)
     }
 
+    // Encrypt the key before saving it to DataStore
     suspend fun saveApiKey(key: String) {
-        dataStore.edit { it[API_KEY] = key }
+        val encryptedKey = cryptoManager.encrypt(key)
+        dataStore.edit { it[SECURE_API_KEY] = encryptedKey }
+    }
+
+    suspend fun saveApiBaseUrl(url: String) {
+        dataStore.edit { it[API_BASE_URL] = url }
     }
 
     suspend fun saveModel(model: String) {
