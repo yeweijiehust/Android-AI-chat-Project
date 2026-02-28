@@ -29,8 +29,12 @@ class SettingsRepository(
     val isReverseProxy: Flow<Boolean> = dataStore.data.map { it[IS_REVERSE_PROXY] ?: false }
     private val MAX_HISTORY = intPreferencesKey("max_history")
     val maxHistory: Flow<Int> = dataStore.data.map { it[MAX_HISTORY] ?: 10 }
+    private val APP_THEME = stringPreferencesKey("app_theme")
 
-    // Map the encrypted flow back to plain text for the UI and Network to read seamlessly
+    val appTheme: Flow<String> = dataStore.data.map { it[APP_THEME] ?: "SYSTEM" }
+
+
+
     val apiKey: Flow<String> = dataStore.data.map { preferences ->
         val encryptedKey = preferences[SECURE_API_KEY] ?: ""
         cryptoManager.decrypt(encryptedKey)
@@ -56,5 +60,9 @@ class SettingsRepository(
 
     suspend fun saveMaxHistory(count: Int) {
         dataStore.edit { it[MAX_HISTORY] = count }
+    }
+
+    suspend fun saveAppTheme(theme: String) {
+        dataStore.edit { it[APP_THEME] = theme }
     }
 }

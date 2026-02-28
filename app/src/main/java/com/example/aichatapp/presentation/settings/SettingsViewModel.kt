@@ -35,10 +35,17 @@ class SettingsViewModel @Inject constructor(
         viewModelScope, SharingStarted.WhileSubscribed(5000), 10
     )
 
+    val appTheme = settingsRepository.appTheme.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), "SYSTEM"
+    )
     fun updateMaxHistory(countStr: String) = viewModelScope.launch {
         val count = countStr.toIntOrNull() ?: 10
         // Coerce the value so the user can't put negative numbers or crazy high numbers
         settingsRepository.saveMaxHistory(count.coerceIn(0, 100))
+    }
+
+    fun updateAppTheme(theme: String) = viewModelScope.launch {
+        settingsRepository.saveAppTheme(theme)
     }
     fun updateApiBaseUrl(url: String) = viewModelScope.launch { settingsRepository.saveApiBaseUrl(url) }
     fun updateApiKey(key: String) = viewModelScope.launch { settingsRepository.saveApiKey(key) }

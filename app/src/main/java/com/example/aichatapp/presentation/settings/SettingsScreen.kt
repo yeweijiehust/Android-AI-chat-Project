@@ -7,6 +7,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -23,7 +24,9 @@ fun SettingsScreen(
     val model by viewModel.model.collectAsStateWithLifecycle()
     val isReverseProxy by viewModel.isReverseProxy.collectAsStateWithLifecycle()
     val maxHistory by viewModel.maxHistory.collectAsStateWithLifecycle()
-
+    val appTheme by viewModel.appTheme.collectAsStateWithLifecycle()
+    var themeDropdownExpanded by remember { mutableStateOf(false) }
+    
     Scaffold(
         topBar = { TopAppBar(title = { Text("Settings") }) }
     ) { padding ->
@@ -55,7 +58,7 @@ fun SettingsScreen(
             OutlinedTextField(
                 value = model,
                 onValueChange = viewModel::updateModel,
-                label = { Text("Model (e.g., gpt-3.5-turbo)") },
+                label = { Text("Model") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
@@ -65,13 +68,49 @@ fun SettingsScreen(
                 onValueChange = viewModel::updateMaxHistory,
                 label = { Text("Memory Context (1-100)") },
                 keyboardOptions = KeyboardOptions(
-                    keyboardType = androidx.compose.ui.text.input.KeyboardType.Number,
+                    keyboardType = KeyboardType.Number,
                     imeAction = ImeAction.Done
                 ),
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
 
+            ExposedDropdownMenuBox(
+                expanded = themeDropdownExpanded,
+                onExpandedChange = { themeDropdownExpanded = !themeDropdownExpanded }
+            ) {
+                OutlinedTextField(
+                    value = when (appTheme) {
+                        "DARK" -> "Dark Mode"
+                        "LIGHT" -> "Light Mode"
+                        else -> "System Default"
+                    },
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("App Theme") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = themeDropdownExpanded) },
+                    modifier = Modifier
+                        .menuAnchor(type = ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                        .fillMaxWidth(),
+                    colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+                )
+                ExposedDropdownMenu(
+                    expanded = themeDropdownExpanded,
+                    onDismissRequest = { themeDropdownExpanded = false }
+                ) {
+                    val themeOptions = listOf("SYSTEM" to "System Default", "LIGHT" to "Light Mode", "DARK" to "Dark Mode")
+                    themeOptions.forEach { (key, displayValue) ->
+                        DropdownMenuItem(
+                            text = { Text(displayValue) },
+                            onClick = {
+                                viewModel.updateAppTheme(key)
+                                themeDropdownExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
+            
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
