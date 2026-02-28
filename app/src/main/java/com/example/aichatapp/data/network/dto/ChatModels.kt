@@ -9,7 +9,8 @@ import kotlinx.serialization.Serializable
 data class ChatCompletionRequest(
     val model: String,
     val messages: List<MessageDto>,
-    val temperature: Double = 0.7
+    val temperature: Double = 0.7,
+    val stream: Boolean = false
 )
 
 @Serializable
@@ -30,4 +31,22 @@ data class ChoiceDto(
     val index: Int,
     val message: MessageDto,
     @SerialName("finish_reason") val finishReason: String? = null
+)
+
+@Serializable
+data class ChatStreamChunk(
+    val id: String = "",
+    val choices: List<StreamChoice>
+)
+
+@Serializable
+data class StreamChoice(
+    val index: Int,
+    val delta: DeltaDto,
+    @SerialName("finish_reason") val finishReason: String? = null
+)
+
+@Serializable
+data class DeltaDto(
+    val content: String? = null // It might be null in the first or last chunk
 )

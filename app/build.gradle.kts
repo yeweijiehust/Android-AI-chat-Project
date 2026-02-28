@@ -95,4 +95,6 @@ dependencies {
     // Kotlinx Serialization for Retrofit
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
     implementation("com.squareup.retrofit2:converter-kotlinx-serialization:3.0.0")
+
+    implementation("com.squareup.okhttp3:okhttp-sse:5.3.2")
 }
