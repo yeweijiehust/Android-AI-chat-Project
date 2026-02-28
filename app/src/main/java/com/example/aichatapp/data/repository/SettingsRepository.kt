@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import androidx.datastore.preferences.core.intPreferencesKey
 import com.example.aichatapp.data.security.CryptoManager
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -26,6 +27,8 @@ class SettingsRepository(
     val apiBaseUrl: Flow<String> = dataStore.data.map { it[API_BASE_URL] ?: "https://api.openai.com/v1/" }
     val model: Flow<String> = dataStore.data.map { it[MODEL] ?: "gpt-3.5-turbo" }
     val isReverseProxy: Flow<Boolean> = dataStore.data.map { it[IS_REVERSE_PROXY] ?: false }
+    private val MAX_HISTORY = intPreferencesKey("max_history")
+    val maxHistory: Flow<Int> = dataStore.data.map { it[MAX_HISTORY] ?: 10 }
 
     // Map the encrypted flow back to plain text for the UI and Network to read seamlessly
     val apiKey: Flow<String> = dataStore.data.map { preferences ->
@@ -49,5 +52,9 @@ class SettingsRepository(
 
     suspend fun setReverseProxy(enabled: Boolean) {
         dataStore.edit { it[IS_REVERSE_PROXY] = enabled }
+    }
+
+    suspend fun saveMaxHistory(count: Int) {
+        dataStore.edit { it[MAX_HISTORY] = count }
     }
 }

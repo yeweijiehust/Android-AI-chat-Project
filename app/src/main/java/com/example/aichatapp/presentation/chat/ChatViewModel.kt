@@ -55,7 +55,7 @@ class ChatViewModel @Inject constructor(
             val baseUrl = settingsRepository.apiBaseUrl.first()
             val apiKey = settingsRepository.apiKey.first() // Or getApiKeySync() if using Step 7
             val model = settingsRepository.model.first()
-
+            val maxHistory = settingsRepository.maxHistory.first()
             if (baseUrl.isBlank() || apiKey.isBlank()) {
                 _uiEvent.emit(UiEvent.ShowSnackbar("Error: API Key or Base URL missing."))
                 return@launch
@@ -74,7 +74,9 @@ class ChatViewModel @Inject constructor(
 
                 val requestMessages = mutableListOf<MessageDto>()
                 if (systemPrompt.isNotBlank()) requestMessages.add(MessageDto("system", systemPrompt))
-                requestMessages.addAll(messages.value.map { MessageDto(it.role, it.content) })
+                val recentHistory = messages.value.takeLast(maxHistory)
+
+                requestMessages.addAll(recentHistory.map { MessageDto(it.role, it.content) })
                 requestMessages.add(MessageDto("user", content))
 
                 val request = ChatCompletionRequest(model = model, messages = requestMessages, stream = true)

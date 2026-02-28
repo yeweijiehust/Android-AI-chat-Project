@@ -22,6 +22,7 @@ fun SettingsScreen(
     val apiKey by viewModel.apiKey.collectAsStateWithLifecycle()
     val model by viewModel.model.collectAsStateWithLifecycle()
     val isReverseProxy by viewModel.isReverseProxy.collectAsStateWithLifecycle()
+    val maxHistory by viewModel.maxHistory.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Settings") }) }
@@ -55,6 +56,18 @@ fun SettingsScreen(
                 value = model,
                 onValueChange = viewModel::updateModel,
                 label = { Text("Model (e.g., gpt-3.5-turbo)") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+
+            OutlinedTextField(
+                value = maxHistory.toString(),
+                onValueChange = viewModel::updateMaxHistory,
+                label = { Text("Memory Context (1-100)") },
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = androidx.compose.ui.text.input.KeyboardType.Number,
+                    imeAction = ImeAction.Done
+                ),
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )

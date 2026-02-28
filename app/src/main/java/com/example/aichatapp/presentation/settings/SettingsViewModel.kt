@@ -31,7 +31,15 @@ class SettingsViewModel @Inject constructor(
     val isReverseProxy = settingsRepository.isReverseProxy.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), false
     )
+    val maxHistory = settingsRepository.maxHistory.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), 10
+    )
 
+    fun updateMaxHistory(countStr: String) = viewModelScope.launch {
+        val count = countStr.toIntOrNull() ?: 10
+        // Coerce the value so the user can't put negative numbers or crazy high numbers
+        settingsRepository.saveMaxHistory(count.coerceIn(0, 100))
+    }
     fun updateApiBaseUrl(url: String) = viewModelScope.launch { settingsRepository.saveApiBaseUrl(url) }
     fun updateApiKey(key: String) = viewModelScope.launch { settingsRepository.saveApiKey(key) }
     fun updateModel(model: String) = viewModelScope.launch { settingsRepository.saveModel(model) }
