@@ -34,6 +34,7 @@ fun ChatScreen(
     var inputText by remember { mutableStateOf("") }
     var showPromptDialog by remember { mutableStateOf(false) }
     var systemPromptInput by remember { mutableStateOf("") }
+    val streamingMessage by viewModel.streamingMessage.collectAsStateWithLifecycle()
 
     val listState = rememberLazyListState()
 
@@ -77,7 +78,6 @@ fun ChatScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // Chat Message List
             LazyColumn(
                 state = listState,
                 modifier = Modifier
@@ -85,23 +85,20 @@ fun ChatScreen(
                     .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                // The history loaded from the Room database
                 items(messages) { message ->
                     val isUser = message.role == "user"
-                    Box(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = if (isUser) Alignment.CenterEnd else Alignment.CenterStart
-                    ) {
-                        Text(
-                            text = message.content,
-                            color = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(if (isUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
-                                .padding(12.dp)
-                        )
+                    MessageBubble(message.content, isUser) // Abstracted to a helper below for clean code
+                }
+
+                // 2. Add the real-time typing bubble!
+                if (streamingMessage != null) {
+                    item {
+                        MessageBubble(text = streamingMessage!!, isUser = false)
                     }
                 }
-                if (isGenerating) {
+
+                if (isGenerating && streamingMessage.isNullOrEmpty()) {
                     item {
                         CircularProgressIndicator(modifier = Modifier.padding(16.dp))
                     }
@@ -161,5 +158,22 @@ fun ChatScreen(
                 }
             )
         }
+    }
+}
+
+@Composable
+fun MessageBubble(text: String, isUser: Boolean) {
+    Box(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = if (isUser) Alignment.CenterEnd else Alignment.CenterStart
+    ) {
+        Text(
+            text = text,
+            color = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier
+                .clip(RoundedCornerShape(12.dp))
+                .background(if (isUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
+                .padding(12.dp)
+        )
     }
 }

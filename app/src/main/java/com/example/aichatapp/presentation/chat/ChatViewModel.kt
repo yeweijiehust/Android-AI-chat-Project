@@ -15,13 +15,14 @@ import kotlinx.coroutines.launch
 import retrofit2.HttpException
 import java.net.UnknownHostException
 import javax.inject.Inject
+import com.example.aichatapp.data.network.AiStreamClient
 
 @HiltViewModel
 class ChatViewModel @Inject constructor(
     private val chatRepository: ChatRepository,
     private val settingsRepository: SettingsRepository,
-    private val aiApi: AiApi,
-    savedStateHandle: SavedStateHandle // Used to grab the sessionId from the Navigation Route
+    private val aiStreamClient: AiStreamClient,
+    savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     val sessionId: String = checkNotNull(savedStateHandle["sessionId"])
@@ -29,9 +30,11 @@ class ChatViewModel @Inject constructor(
     private val _uiEvent = MutableSharedFlow<UiEvent>()
     val uiEvent = _uiEvent.asSharedFlow()
 
-    // State to show a loading spinner while waiting for the AI
     private val _isGenerating = MutableStateFlow(false)
     val isGenerating = _isGenerating.asStateFlow()
+
+    private val _streamingMessage = MutableStateFlow<String?>(null)
+    val streamingMessage = _streamingMessage.asStateFlow()
 
     // Fetches the messages for this specific chat
     val messages = chatRepository.getMessagesForSession(sessionId).stateIn(
@@ -49,65 +52,51 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             if (content.isBlank()) return@launch
 
-            // 1. Fetch dynamic settings
             val baseUrl = settingsRepository.apiBaseUrl.first()
-            val apiKey = settingsRepository.apiKey.first()
+            val apiKey = settingsRepository.apiKey.first() // Or getApiKeySync() if using Step 7
             val model = settingsRepository.model.first()
 
-            // 2. Validate Settings (Exception Handling Requirement)
             if (baseUrl.isBlank() || apiKey.isBlank()) {
-                _uiEvent.emit(UiEvent.ShowSnackbar("Error: API Key or Base URL is missing. Please check Settings."))
+                _uiEvent.emit(UiEvent.ShowSnackbar("Error: API Key or Base URL missing."))
                 return@launch
             }
 
+            // 1. Save User Message to DB immediately
+            chatRepository.insertMessage(sessionId, "user", content)
+
             _isGenerating.value = true
+            _streamingMessage.value = "" // Initialize empty stream
 
             try {
-                // 3. Save User Message to DB
-                chatRepository.insertMessage(sessionId, "user", content)
-
-                // 4. Build the payload
+                // 2. Build Request (Set stream = true)
                 val session = chatRepository.getSessionById(sessionId)
                 val systemPrompt = session?.systemPrompt ?: ""
 
                 val requestMessages = mutableListOf<MessageDto>()
-
-                // Add System Prompt if it exists
-                if (systemPrompt.isNotBlank()) {
-                    requestMessages.add(MessageDto("system", systemPrompt))
-                }
-
-                // Add previous chat history
-                requestMessages.addAll(
-                    messages.value.map { MessageDto(it.role, it.content) }
-                )
-
-                // Add the new user message
+                if (systemPrompt.isNotBlank()) requestMessages.add(MessageDto("system", systemPrompt))
+                requestMessages.addAll(messages.value.map { MessageDto(it.role, it.content) })
                 requestMessages.add(MessageDto("user", content))
 
-                val request = ChatCompletionRequest(model = model, messages = requestMessages)
-
-                // 5. Ensure the Base URL is formatted correctly for the endpoint
+                val request = ChatCompletionRequest(model = model, messages = requestMessages, stream = true)
                 val endpoint = if (baseUrl.endsWith("/")) "${baseUrl}chat/completions" else "$baseUrl/chat/completions"
 
-                // 6. Make Network Call
-                val response = aiApi.getChatCompletion(url = endpoint, request = request)
+                // 3. Collect the Stream!
+                aiStreamClient.getChatStream(endpoint, request).collect { textDelta ->
+                    // Append the incoming chunk to the current streaming message
+                    _streamingMessage.value = (_streamingMessage.value ?: "") + textDelta
+                }
 
-                // 7. Extract AI response and save to DB
-                val aiMessage = response.choices.firstOrNull()?.message?.content ?: "No response from AI."
-                chatRepository.insertMessage(sessionId, "assistant", aiMessage)
+                // 4. Stream finished. Save the final completed message to the Database!
+                val finalMessage = _streamingMessage.value
+                if (!finalMessage.isNullOrBlank()) {
+                    chatRepository.insertMessage(sessionId, "assistant", finalMessage)
+                }
 
-            } catch (e: HttpException) {
-                // Handle HTTP errors (e.g., 401 Unauthorized, 404 Not Found)
-                val errorMsg = "API Error ${e.code()}: Please check your API Key and URL."
-                _uiEvent.emit(UiEvent.ShowSnackbar(errorMsg))
-            } catch (e: UnknownHostException) {
-                // Handle Offline / Bad URL errors
-                _uiEvent.emit(UiEvent.ShowSnackbar("Network Error: Unable to reach the server. Check your connection or Base URL."))
             } catch (e: Exception) {
-                // Handle everything else
-                _uiEvent.emit(UiEvent.ShowSnackbar("An error occurred: ${e.localizedMessage}"))
+                _uiEvent.emit(UiEvent.ShowSnackbar("Streaming Error: ${e.localizedMessage}"))
             } finally {
+                // 5. Clean up state
+                _streamingMessage.value = null
                 _isGenerating.value = false
             }
         }
