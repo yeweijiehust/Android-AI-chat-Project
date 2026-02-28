@@ -21,45 +21,42 @@ import javax.inject.Singleton
 class AiStreamClient @Inject constructor(
     private val okHttpClient: OkHttpClient
 ) {
-    // Configure JSON to ignore extra fields OpenAI might send
     private val json = Json { ignoreUnknownKeys = true }
 
     fun getChatStream(url: String, request: ChatCompletionRequest): Flow<String> = callbackFlow {
 
-        // 1. Build the raw OkHttp request
         val requestBody = json.encodeToString(request)
             .toRequestBody("application/json".toMediaType())
 
         val httpRequest = Request.Builder()
             .url(url)
             .post(requestBody)
+            .header("Accept", "text/event-stream") // Standard SSE header
+            .header("Cache-Control", "no-cache")   // Prevent caching of the stream
             .build()
 
-        // 2. Create the SSE listener
         val factory = EventSources.createFactory(okHttpClient)
         val eventSource = factory.newEventSource(httpRequest, object : EventSourceListener() {
 
             override fun onEvent(eventSource: EventSource, id: String?, type: String?, data: String) {
-                // OpenAI sends "[DONE]" when the stream is completely finished
                 if (data == "[DONE]") {
                     close()
                     return
                 }
 
                 try {
-                    // Parse the JSON chunk and emit the text delta to the Flow
                     val chunk = json.decodeFromString<ChatStreamChunk>(data)
                     val content = chunk.choices.firstOrNull()?.delta?.content
                     if (content != null) {
                         trySend(content)
                     }
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    // Ignore parsing errors for empty chunks or non-JSON lines
                 }
             }
 
             override fun onFailure(eventSource: EventSource, t: Throwable?, response: okhttp3.Response?) {
-                close(t ?: Exception("Unknown SSE Error: Code ${response?.code}"))
+                close(t ?: Exception("SSE Failure: ${response?.code}"))
             }
 
             override fun onClosed(eventSource: EventSource) {
@@ -67,7 +64,6 @@ class AiStreamClient @Inject constructor(
             }
         })
 
-        // 3. Cancel the network request if the Coroutine is cancelled (e.g. user leaves the screen)
         awaitClose {
             eventSource.cancel()
         }

@@ -34,7 +34,6 @@ object AppModule {
         return CryptoManager()
     }
 
-    // 1. Provide DataStore Settings Repository
     @Provides
     @Singleton
     fun provideSettingsRepository(
@@ -44,7 +43,6 @@ object AppModule {
         return SettingsRepository(context.dataStore, cryptoManager)
     }
 
-    // 2. Provide Room Database
     @Provides
     @Singleton
     fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase {
@@ -55,13 +53,11 @@ object AppModule {
         ).build()
     }
 
-    // 3. Provide DAO
     @Provides
     fun provideChatDao(database: AppDatabase): ChatDao {
         return database.chatDao()
     }
 
-    // 4. Provide Chat Repository
     @Provides
     @Singleton
     fun provideChatRepository(chatDao: ChatDao): ChatRepository {
@@ -78,13 +74,14 @@ object AppModule {
     @Singleton
     fun provideOkHttpClient(authInterceptor: AuthInterceptor): OkHttpClient {
         val loggingInterceptor = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY // Useful for debugging in Logcat
+            // FIX: Changed from Level.BODY to Level.HEADERS to prevent buffering the stream
+            level = HttpLoggingInterceptor.Level.HEADERS 
         }
 
         return OkHttpClient.Builder()
             .addInterceptor(authInterceptor)
             .addInterceptor(loggingInterceptor)
-            .connectTimeout(30, TimeUnit.SECONDS) // AI responses can be slow
+            .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(60, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
             .build()
@@ -93,10 +90,9 @@ object AppModule {
     @Provides
     @Singleton
     fun provideAiApi(okHttpClient: OkHttpClient): AiApi {
-        val json = Json { ignoreUnknownKeys = true } // Ignores extra fields from API
+        val json = Json { ignoreUnknownKeys = true }
 
         return Retrofit.Builder()
-            // Retrofit requires a base URL to compile, but we override it in the @Url parameter
             .baseUrl("https://api.openai.com/")
             .client(okHttpClient)
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
