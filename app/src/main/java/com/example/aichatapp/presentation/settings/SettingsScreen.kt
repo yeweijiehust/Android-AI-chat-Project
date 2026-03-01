@@ -50,7 +50,10 @@ fun SettingsScreen(
                 onValueChange = viewModel::updateApiKey,
                 label = { Text("API Key") },
                 visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                keyboardOptions = KeyboardOptions(
+                    imeAction = ImeAction.Next,
+                    keyboardType = KeyboardType.Password
+                ),
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )

@@ -23,17 +23,13 @@ class SettingsRepository(
     private val SECURE_API_KEY = stringPreferencesKey("secure_api_key")
     private val MODEL = stringPreferencesKey("model")
     private val IS_REVERSE_PROXY = booleanPreferencesKey("is_reverse_proxy")
-
-    val apiBaseUrl: Flow<String> = dataStore.data.map { it[API_BASE_URL] ?: "https://api.openai.com/v1/" }
-    val model: Flow<String> = dataStore.data.map { it[MODEL] ?: "gpt-3.5-turbo" }
-    val isReverseProxy: Flow<Boolean> = dataStore.data.map { it[IS_REVERSE_PROXY] ?: false }
     private val MAX_HISTORY = intPreferencesKey("max_history")
-    val maxHistory: Flow<Int> = dataStore.data.map { it[MAX_HISTORY] ?: 10 }
     private val APP_THEME = stringPreferencesKey("app_theme")
-
+    val apiBaseUrl: Flow<String> = dataStore.data.map { it[API_BASE_URL] ?: "https://gcli.ggchan.dev/v1/" }
+    val model: Flow<String> = dataStore.data.map { it[MODEL] ?: "gemini-3-pro-preview" }
+    val isReverseProxy: Flow<Boolean> = dataStore.data.map { it[IS_REVERSE_PROXY] ?: true }
+    val maxHistory: Flow<Int> = dataStore.data.map { it[MAX_HISTORY] ?: 10 }
     val appTheme: Flow<String> = dataStore.data.map { it[APP_THEME] ?: "SYSTEM" }
-
-
 
     val apiKey: Flow<String> = dataStore.data.map { preferences ->
         val encryptedKey = preferences[SECURE_API_KEY] ?: ""
